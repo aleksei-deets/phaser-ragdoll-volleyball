@@ -1,12 +1,19 @@
 {
   "name": "phaser-ragdoll-volleyball",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "phaser": "^4.0.0-rc.6",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  }
 }
