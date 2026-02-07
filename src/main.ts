@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { SandboxScene } from './scenes/SandboxScene';
 import { GameScene } from './scenes/GameScene';
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -6,7 +7,11 @@ const config: Phaser.Types.Core.GameConfig = {
   width: 800,
   height: 600,
   backgroundColor: '#87CEEB',
-  parent: document.body,
+  parent: 'game-container',
+  scale: {
+    mode: Phaser.Scale.ScaleModes.FIT,
+    autoCenter: Phaser.Scale.Center.CENTER_BOTH,
+  },
   physics: {
     default: 'matter',
     matter: {
@@ -17,7 +22,7 @@ const config: Phaser.Types.Core.GameConfig = {
       constraintIterations: 14,
     },
   },
-  scene: [GameScene],
+  scene: [SandboxScene, GameScene],
 };
 
 new Phaser.Game(config);

@@ -12,15 +12,89 @@
     }
     body {
       display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: #1a1a1a;
+      overflow: hidden;
+    }
+    #game-container {
+      flex: 1;
+      display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
-      background: #000;
-      overflow: hidden;
+      min-height: 0;
+    }
+    #controls-panel {
+      flex-shrink: 0;
+      height: 200px;
+      overflow-y: auto;
+      background: #2d2d2d;
+      border-top: 1px solid #444;
+      padding: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-content: flex-start;
+      align-items: flex-start;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px 10px;
+      background: #3a3a3a;
+      border-radius: 6px;
+      min-width: 140px;
+    }
+    .control-group label {
+      font: 11px/1.2 sans-serif;
+      color: #ccc;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .control-row input[type="range"] {
+      flex: 1;
+      min-width: 60px;
+    }
+    .control-row span {
+      font: 11px monospace;
+      color: #aaa;
+      min-width: 36px;
+    }
+    .control-desc {
+      font: 9px/1.2 sans-serif;
+      color: #888;
+      max-width: 160px;
+      margin-top: 2px;
+    }
+    #controls-panel button {
+      padding: 6px 12px;
+      font-size: 12px;
+      background: #4a7ab8;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #controls-panel button:hover {
+      background: #5a8ac8;
+    }
+    #controls-panel select {
+      padding: 4px 8px;
+      font-size: 12px;
+      background: #3a3a3a;
+      color: #eee;
+      border: 1px solid #555;
+      border-radius: 4px;
     }
   </style>
 </head>
 <body>
+  <div id="game-container"></div>
+  <div id="controls-panel"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
