@@ -46,3 +46,7 @@ Desktop.ini
 # Optional (раскомментируйте при необходимости)
 # coverage/
 # *.tgz
+
+# Cursor
+.cursor/
+.agents/
