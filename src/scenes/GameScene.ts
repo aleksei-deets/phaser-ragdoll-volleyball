@@ -1,12 +1,20 @@
 import Phaser from 'phaser';
-import { Ragdoll } from '../entities/Ragdoll';
+import { Ragdoll, type RagdollConfig } from '../entities/Ragdoll';
+import {
+  DEFAULT_SANDBOX_CONFIG,
+  PRESETS_BASE_URL,
+  type PresetsManifest,
+  type SavedPreset,
+  type SandboxConfig,
+} from '../types/sandboxConfig';
 
 // ─── Размеры и цвета площадки ──────────────────────────────────────────
 
 const GAME_W = 800;
 const GAME_H = 600;
 const GROUND_Y = 540;
-const FLOOR_THICKNESS = 60;
+/** Высота пола увеличена на 10% под нижнюю панель пресетов */
+const FLOOR_THICKNESS = 66;
 
 const NET_X = GAME_W / 2;
 const NET_HEIGHT = 180;
@@ -26,11 +34,49 @@ const COLOR_SKY_BOTTOM = 0x87ceeb;
 const COLOR_PLAYER1 = 0x3377ee;
 const COLOR_PLAYER2 = 0xee4433;
 
+// ─── Преобразование конфига песочницы в конфиг рагдолла ───────────────
+// Мировые параметры (gravityX, gravityY, positionIterations, velocityIterations,
+// constraintIterations) не входят в RagdollConfig — применяются к миру отдельно.
+
+function sandboxConfigToRagdollConfig(c: SandboxConfig): RagdollConfig {
+  return {
+    frictionAirTorso: c.frictionAirTorso,
+    frictionAirLimbs: c.frictionAirLimbs,
+    density: c.density,
+    densityTorso: c.densityTorso,
+    densityLimbs: c.densityLimbs,
+    friction: c.friction,
+    frictionStatic: c.frictionStatic,
+    restitution: c.restitution,
+    footRestitution: c.footRestitution,
+    stabilizationMultiplier: c.stabilizationMultiplier,
+    stabilizationTorsoKp: c.stabilizationTorsoKp,
+    stabilizationTorsoKd: c.stabilizationTorsoKd,
+    stabilizationHeadKp: c.stabilizationHeadKp,
+    stabilizationHeadKd: c.stabilizationHeadKd,
+    stabilizationLegKp: c.stabilizationLegKp,
+    stabilizationLegKd: c.stabilizationLegKd,
+    stabilizationArmKp: c.stabilizationArmKp,
+    stabilizationArmKd: c.stabilizationArmKd,
+    enforceStructureStrength: c.enforceStructureStrength,
+    maxVerticalSpeed: c.maxVerticalSpeed,
+    angularDamping: c.angularDamping,
+    jumpVelocity: c.jumpVelocity,
+    jumpCooldownMs: c.jumpCooldownMs,
+    moveForceScale: c.impulseStrength / DEFAULT_SANDBOX_CONFIG.impulseStrength,
+    armLiftOnJump: c.armLiftOnJump,
+  };
+}
+
 // ─── GameScene ────────────────────────────────────────────────────────
 
 export class GameScene extends Phaser.Scene {
   private player1!: Ragdoll;
   private player2!: Ragdoll;
+
+  /** Текущий конфиг пресета для каждого игрока (применяется каждый кадр) */
+  private presetConfigP1!: SandboxConfig;
+  private presetConfigP2!: SandboxConfig;
 
   // Клавиши управления
   private keyP1Left!: Phaser.Input.Keyboard.Key;
@@ -46,13 +92,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Игра на весь экран: сброс высоты контейнера и скрытие панели
+    // Игра: контейнер на оставшуюся высоту, снизу панель пресетов 10vh
     const gameContainer = document.getElementById('game-container');
     const panelArea = document.getElementById('panel-area');
-    const panel = document.getElementById('controls-panel');
+    const controlsPanel = document.getElementById('controls-panel');
+    const presetsPanel = document.getElementById('game-presets-panel');
     if (gameContainer) gameContainer.style.height = '';
-    if (panelArea) panelArea.style.display = 'none';
-    if (panel) panel.style.display = 'none';
+    if (panelArea) {
+      panelArea.style.display = 'block';
+      panelArea.style.height = '12vh';
+    }
+    if (controlsPanel) controlsPanel.style.display = 'none';
+    if (presetsPanel) presetsPanel.style.display = 'flex';
     requestAnimationFrame(() => {
       this.scale.getParentBounds();
       this.scale.refresh();
@@ -61,9 +112,25 @@ export class GameScene extends Phaser.Scene {
     this.drawBackground();
     this.createCourt();
     this.createPlayers();
+    this.presetConfigP1 = { ...DEFAULT_SANDBOX_CONFIG };
+    this.presetConfigP2 = { ...DEFAULT_SANDBOX_CONFIG };
     this.setupControls();
+    this.buildPresetPanel();
     this.addControlHints();
     this.createBackButton();
+
+    this.events.once('shutdown', () => {
+      const pa = document.getElementById('panel-area');
+      const pp = document.getElementById('game-presets-panel');
+      if (pa) {
+        pa.style.display = 'none';
+        pa.style.height = '';
+      }
+      if (pp) {
+        pp.style.display = 'none';
+        pp.innerHTML = '';
+      }
+    });
   }
 
   // ─── Фон ───────────────────────────────────────────────────────────
@@ -186,9 +253,9 @@ export class GameScene extends Phaser.Scene {
   // ─── Игроки ────────────────────────────────────────────────────────
 
   private createPlayers(): void {
-    // Конструктор Ragdoll сам вычислит Y торса по GROUND_Y
-    this.player1 = new Ragdoll(this, 200, GROUND_Y, COLOR_PLAYER1, -1);
-    this.player2 = new Ragdoll(this, 600, GROUND_Y, COLOR_PLAYER2, -2);
+    const defaultRagdollConfig = sandboxConfigToRagdollConfig(DEFAULT_SANDBOX_CONFIG);
+    this.player1 = new Ragdoll(this, 200, GROUND_Y, COLOR_PLAYER1, -1, defaultRagdollConfig);
+    this.player2 = new Ragdoll(this, 600, GROUND_Y, COLOR_PLAYER2, -2, defaultRagdollConfig);
   }
 
   // ─── Управление ────────────────────────────────────────────────────
@@ -217,6 +284,142 @@ export class GameScene extends Phaser.Scene {
     if (this.keyP2Left.isDown) this.player2.moveHorizontal(-1);
     if (this.keyP2Right.isDown) this.player2.moveHorizontal(1);
     if (Phaser.Input.Keyboard.JustDown(this.keyP2Up)) this.player2.jump();
+  }
+
+  // ─── Нижняя панель выбора пресетов (10vh), селекты по центру зон игроков ─
+
+  private buildPresetPanel(): void {
+    const panel = document.getElementById('game-presets-panel');
+    if (!panel) return;
+
+    panel.innerHTML = '';
+
+    const addCell = (label: string) => {
+      const cell = document.createElement('div');
+      cell.className = 'preset-cell';
+      const lbl = document.createElement('label');
+      lbl.textContent = label;
+      const sel = document.createElement('select');
+      sel.innerHTML = '<option value="">Загрузка…</option>';
+      cell.appendChild(lbl);
+      cell.appendChild(sel);
+      panel.appendChild(cell);
+      return sel;
+    };
+
+    const selectP1 = addCell('Загрузить настройки для игрока 1');
+    const selectP2 = addCell('Загрузить настройки для игрока 2');
+
+    const applyPresetToPlayer = (player: Ragdoll, config: SandboxConfig): void => {
+      player.applyConfig(sandboxConfigToRagdollConfig(config));
+    };
+
+    const onSelectChange = async (
+      select: HTMLSelectElement,
+      player: Ragdoll,
+      setPresetConfig: (config: SandboxConfig) => void,
+    ) => {
+      const file = select.value;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/47129043-05d8-400f-9097-49e95bba1a31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameScene.ts:onSelectChange',message:'onSelectChange called',data:{file,hasFile:!!file},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      if (!file) return;
+      try {
+        const url = `${PRESETS_BASE_URL}/${file}`;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/47129043-05d8-400f-9097-49e95bba1a31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameScene.ts:beforeFetch',message:'before fetch',data:{url},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        const res = await fetch(url);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/47129043-05d8-400f-9097-49e95bba1a31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameScene.ts:afterFetch',message:'after fetch',data:{ok:res.ok,status:res.status},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        if (!res.ok) return;
+        const preset: SavedPreset = await res.json();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/47129043-05d8-400f-9097-49e95bba1a31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameScene.ts:afterJson',message:'after json',data:{hasPreset:!!preset,hasConfig:!!(preset?.config)},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        if (preset?.config) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/47129043-05d8-400f-9097-49e95bba1a31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameScene.ts:beforeApply',message:'calling applyPresetToPlayer',data:{},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
+          const fullConfig = { ...DEFAULT_SANDBOX_CONFIG, ...preset.config };
+          applyPresetToPlayer(player, fullConfig);
+          setPresetConfig(fullConfig);
+        }
+      } catch (e) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/47129043-05d8-400f-9097-49e95bba1a31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameScene.ts:catch',message:'fetch/json error',data:{err:String(e)},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+      }
+    };
+
+    const logChange = (
+      which: string,
+      select: HTMLSelectElement,
+      player: Ragdoll,
+      setPresetConfig: (config: SandboxConfig) => void,
+    ) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/47129043-05d8-400f-9097-49e95bba1a31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameScene.ts:change',message:'select change fired',data:{which,value:select.value},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      onSelectChange(select, player, setPresetConfig);
+    };
+    selectP1.addEventListener('change', () =>
+      logChange('P1', selectP1, this.player1, (c) => {
+        this.presetConfigP1 = c;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/47129043-05d8-400f-9097-49e95bba1a31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameScene.ts:setPresetP1',message:'presetConfigP1 set',data:{jumpVelocity:c.jumpVelocity},timestamp:Date.now(),hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
+      }));
+    selectP2.addEventListener('change', () =>
+      logChange('P2', selectP2, this.player2, (c) => {
+        this.presetConfigP2 = c;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/47129043-05d8-400f-9097-49e95bba1a31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameScene.ts:setPresetP2',message:'presetConfigP2 set',data:{jumpVelocity:c.jumpVelocity},timestamp:Date.now(),hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
+      }));
+
+    const fillSelect = (sel: HTMLSelectElement, presets: PresetsManifest['presets']) => {
+      sel.innerHTML = '';
+      if (presets.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '— Нет пресетов —';
+        sel.appendChild(opt);
+        return;
+      }
+      for (const p of presets) {
+        const opt = document.createElement('option');
+        opt.value = p.file;
+        opt.textContent = p.name;
+        sel.appendChild(opt);
+      }
+    };
+
+    const refreshPresetList = async () => {
+      try {
+        const res = await fetch(`${PRESETS_BASE_URL}/manifest.json`);
+        if (!res.ok) return;
+        const manifest: PresetsManifest = await res.json();
+        fillSelect(selectP1, manifest.presets);
+        fillSelect(selectP2, manifest.presets);
+        // Сразу применить выбранный (первый) пресет к обоим игрокам
+        if (manifest.presets.length > 0) {
+          selectP1.value = manifest.presets[0].file;
+          selectP2.value = manifest.presets[0].file;
+          await onSelectChange(selectP1, this.player1, (c) => { this.presetConfigP1 = c; });
+          await onSelectChange(selectP2, this.player2, (c) => { this.presetConfigP2 = c; });
+        }
+      } catch {
+        const empty: PresetsManifest['presets'] = [];
+        fillSelect(selectP1, empty);
+        fillSelect(selectP2, empty);
+        if (selectP1.options[0]) selectP1.options[0].textContent = '— Ошибка загрузки —';
+        if (selectP2.options[0]) selectP2.options[0].textContent = '— Ошибка загрузки —';
+      }
+    };
+
+    void refreshPresetList();
   }
 
   // ─── Кнопка «Назад в меню» ─────────────────────────────────────────
@@ -267,9 +470,22 @@ export class GameScene extends Phaser.Scene {
     this.add.text(GAME_W - 16, 16, 'P2: ← ↑ →', style).setDepth(20).setAlpha(0.7).setOrigin(1, 0);
   }
 
+  /** Применить к миру гравитацию и итерации движка (общие для всех, берём из пресета P1) */
+  private applyWorldConfig(config: SandboxConfig): void {
+    const engine = this.matter.world.engine;
+    engine.world.gravity.x = config.gravityX;
+    engine.world.gravity.y = config.gravityY;
+    engine.positionIterations = config.positionIterations;
+    engine.velocityIterations = config.velocityIterations;
+    engine.constraintIterations = config.constraintIterations;
+  }
+
   // ─── Игровой цикл ─────────────────────────────────────────────────
 
   update(): void {
+    this.applyWorldConfig(this.presetConfigP1);
+    this.player1.applyConfig(sandboxConfigToRagdollConfig(this.presetConfigP1));
+    this.player2.applyConfig(sandboxConfigToRagdollConfig(this.presetConfigP2));
     this.handleInput();
     this.player1.update();
     this.player2.update();

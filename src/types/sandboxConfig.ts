@@ -69,7 +69,13 @@ export const DEFAULT_SANDBOX_CONFIG: SandboxConfig = {
   jumpCooldownMs: 400,
 };
 
-export const PRESETS_STORAGE_KEY = 'ragdoll-sandbox-presets';
+/** Базовый URL папки пресетов (public/presets в dev и build) */
+export const PRESETS_BASE_URL = '/presets';
+
+/** Манифест списка пресетов в папке presets */
+export interface PresetsManifest {
+  presets: Array<{ file: string; name: string }>;
+}
 
 export interface SavedPreset {
   name: string;

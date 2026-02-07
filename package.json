@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/node": "^25.2.1",
     "phaser": "^4.0.0-rc.6",
     "typescript": "^5.9.3",
     "vite": "^6.4.1"

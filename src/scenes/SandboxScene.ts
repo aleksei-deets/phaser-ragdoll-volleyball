@@ -4,7 +4,8 @@ import type { RagdollConfig, StabilizationConfig } from '../entities/Ragdoll';
 import {
   type SandboxConfig,
   DEFAULT_SANDBOX_CONFIG,
-  PRESETS_STORAGE_KEY,
+  PRESETS_BASE_URL,
+  type PresetsManifest,
   type SavedPreset,
 } from '../types/sandboxConfig';
 
@@ -401,38 +402,64 @@ export class SandboxScene extends Phaser.Scene {
     const loadBtn = document.createElement('button');
     loadBtn.textContent = 'Загрузить';
 
-    const refreshPresetList = () => {
-      const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
-      const list: SavedPreset[] = raw ? JSON.parse(raw) : [];
-      loadSelect.innerHTML = '<option value="">— Загрузить —</option>';
-      list.forEach((p, i) => {
-        const opt = document.createElement('option');
-        opt.value = String(i);
-        opt.textContent = p.name;
-        loadSelect.appendChild(opt);
-      });
+    const refreshPresetList = async () => {
+      try {
+        const res = await fetch(`${PRESETS_BASE_URL}/manifest.json`);
+        if (!res.ok) return;
+        const manifest: PresetsManifest = await res.json();
+        loadSelect.innerHTML = '<option value="">— Загрузить —</option>';
+        for (const p of manifest.presets) {
+          const opt = document.createElement('option');
+          opt.value = p.file;
+          opt.textContent = p.name;
+          loadSelect.appendChild(opt);
+        }
+      } catch {
+        loadSelect.innerHTML = '<option value="">— Загрузить —</option>';
+      }
     };
-    refreshPresetList();
+    void refreshPresetList();
 
-    saveBtn.addEventListener('click', () => {
+    saveBtn.addEventListener('click', async () => {
       const name = nameInput.value.trim() || 'Preset ' + Date.now();
-      const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
-      const list: SavedPreset[] = raw ? JSON.parse(raw) : [];
-      list.push({ name, config: { ...this.config } });
-      localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(list));
-      refreshPresetList();
+      const preset: SavedPreset = { name, config: { ...this.config } };
+      try {
+        const res = await fetch('/__presets__/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(preset),
+        });
+        if (res.ok) {
+          await refreshPresetList();
+          nameInput.value = '';
+          return;
+        }
+      } catch {
+        /* API недоступен (production) — сохраняем как скачивание */
+      }
+      const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-') || 'preset'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
       nameInput.value = '';
     });
 
-    loadBtn.addEventListener('click', () => {
-      const idx = loadSelect.value;
-      if (idx === '') return;
-      const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
-      const list: SavedPreset[] = raw ? JSON.parse(raw) : [];
-      const preset = list[parseInt(idx, 10)];
-      if (preset) {
-        this.config = { ...DEFAULT_SANDBOX_CONFIG, ...preset.config };
-        this.refreshPanelValues(panel);
+    loadBtn.addEventListener('click', async () => {
+      const file = loadSelect.value;
+      if (!file) return;
+      try {
+        const res = await fetch(`${PRESETS_BASE_URL}/${file}`);
+        if (!res.ok) return;
+        const preset: SavedPreset = await res.json();
+        if (preset?.config) {
+          this.config = { ...DEFAULT_SANDBOX_CONFIG, ...preset.config };
+          this.refreshPanelValues(panel);
+        }
+      } catch {
+        /* ignore */
       }
     });
 

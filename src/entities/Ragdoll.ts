@@ -55,6 +55,14 @@ export interface RagdollConfig {
   footRestitution?: number;
   angularDamping?: number;
   maxVerticalSpeed?: number;
+  /** Начальная скорость при прыжке (по вертикали вверх) */
+  jumpVelocity?: number;
+  /** Минимальная пауза между прыжками (мс) */
+  jumpCooldownMs?: number;
+  /** Множитель силы горизонтального движения (1 = дефолт) */
+  moveForceScale?: number;
+  /** Множитель подъёма рук при прыжке (0 = не поднимать) */
+  armLiftOnJump?: number;
 }
 
 /** Конфиг стабилизации, передаётся в update() каждый кадр */
@@ -247,6 +255,7 @@ function getJointsWithPelvis(): JointDef[] {
 const MOVE_FORCE = 0.004;
 const MAX_SPEED = 4;
 const JUMP_VELOCITY = 9;
+const JUMP_COOLDOWN_MS = 400;
 const GROUND_TOLERANCE = 8;
 
 const DEFAULT_STAB: Required<StabilizationConfig> = {
@@ -271,6 +280,10 @@ export class Ragdoll {
   private constraints: MatterJS.ConstraintType[] = [];
   private groundY: number;
   private lastJumpTime = 0;
+  private jumpVelocity: number;
+  private jumpCooldownMs: number;
+  private moveForceScale: number;
+  private armLiftOnJump: number;
   private withPelvis: boolean;
   private bodyPartDefs: BodyPartDef[];
   private stabilizationConfig: Required<StabilizationConfig> = { ...DEFAULT_STAB };
@@ -305,6 +318,10 @@ export class Ragdoll {
     const footRestitution = config?.footRestitution ?? restitution;
     this.maxVerticalSpeed = config?.maxVerticalSpeed ?? 0;
     this.angularDamping = config?.angularDamping ?? 0;
+    this.jumpVelocity = config?.jumpVelocity ?? JUMP_VELOCITY;
+    this.jumpCooldownMs = config?.jumpCooldownMs ?? JUMP_COOLDOWN_MS;
+    this.moveForceScale = config?.moveForceScale ?? 1;
+    this.armLiftOnJump = config?.armLiftOnJump ?? 0;
 
     if (config?.stabilizationMultiplier !== undefined) this.stabilizationConfig.multiplier = config.stabilizationMultiplier;
     if (config?.stabilizationTorsoKp !== undefined) this.stabilizationConfig.torsoKp = config.stabilizationTorsoKp;
@@ -457,6 +474,10 @@ export class Ragdoll {
     if (config.stabilizationArmKp !== undefined) this.stabilizationConfig.armKp = config.stabilizationArmKp;
     if (config.stabilizationArmKd !== undefined) this.stabilizationConfig.armKd = config.stabilizationArmKd;
     if (config.enforceStructureStrength !== undefined) this.stabilizationConfig.enforceStrength = config.enforceStructureStrength;
+    if (config.jumpVelocity !== undefined) this.jumpVelocity = config.jumpVelocity;
+    if (config.jumpCooldownMs !== undefined) this.jumpCooldownMs = config.jumpCooldownMs;
+    if (config.moveForceScale !== undefined) this.moveForceScale = config.moveForceScale;
+    if (config.armLiftOnJump !== undefined) this.armLiftOnJump = config.armLiftOnJump;
   }
 
   /** Обновить конфиг стабилизации на лету (вызывается из SandboxScene каждый кадр при необходимости) */
@@ -529,8 +550,9 @@ export class Ragdoll {
   moveHorizontal(direction: number): void {
     const torso = this.parts.get('torso')!.body;
     const velX = torso.velocity.x;
+    const force = MOVE_FORCE * this.moveForceScale;
     if ((direction > 0 && velX < MAX_SPEED) || (direction < 0 && velX > -MAX_SPEED)) {
-      this.mb.applyForce(torso, torso.position, { x: direction * MOVE_FORCE, y: 0 });
+      this.mb.applyForce(torso, torso.position, { x: direction * force, y: 0 });
     }
   }
 
@@ -576,14 +598,27 @@ export class Ragdoll {
 
   jump(): void {
     const now = this.scene.time.now;
-    if (now - this.lastJumpTime < 400) return;
+    if (this.jumpCooldownMs > 0 && now - this.lastJumpTime < this.jumpCooldownMs) return;
     if (!this.isGrounded()) return;
     this.lastJumpTime = now;
+    const v = this.jumpVelocity;
     for (const [, part] of this.parts) {
       this.mb.setVelocity(part.body, {
         x: part.body.velocity.x,
-        y: -JUMP_VELOCITY,
+        y: -v,
       });
+    }
+    if (this.armLiftOnJump > 0) {
+      const armLift = this.armLiftOnJump * v;
+      for (const name of ['upperArmL', 'upperArmR', 'lowerArmL', 'lowerArmR'] as const) {
+        const p = this.parts.get(name);
+        if (!p) continue;
+        const b = p.body;
+        this.mb.setVelocity(b, {
+          x: b.velocity.x,
+          y: b.velocity.y - armLift,
+        });
+      }
     }
   }
 

@@ -1,0 +1,8 @@
+{
+  "presets": [
+    {
+      "file": "default.json",
+      "name": "Default"
+    }
+  ]
+}
