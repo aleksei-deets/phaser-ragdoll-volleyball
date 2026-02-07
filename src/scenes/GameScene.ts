@@ -46,11 +46,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Игра на весь экран: сброс высоты контейнера и скрытие панели
+    const gameContainer = document.getElementById('game-container');
+    const panelArea = document.getElementById('panel-area');
+    const panel = document.getElementById('controls-panel');
+    if (gameContainer) gameContainer.style.height = '';
+    if (panelArea) panelArea.style.display = 'none';
+    if (panel) panel.style.display = 'none';
+    requestAnimationFrame(() => {
+      this.scale.getParentBounds();
+      this.scale.refresh();
+    });
+
     this.drawBackground();
     this.createCourt();
     this.createPlayers();
     this.setupControls();
     this.addControlHints();
+    this.createBackButton();
   }
 
   // ─── Фон ───────────────────────────────────────────────────────────
@@ -204,6 +217,40 @@ export class GameScene extends Phaser.Scene {
     if (this.keyP2Left.isDown) this.player2.moveHorizontal(-1);
     if (this.keyP2Right.isDown) this.player2.moveHorizontal(1);
     if (Phaser.Input.Keyboard.JustDown(this.keyP2Up)) this.player2.jump();
+  }
+
+  // ─── Кнопка «Назад в меню» ─────────────────────────────────────────
+
+  private createBackButton(): void {
+    const x = GAME_W / 2;
+    const y = 16;
+    const w = 180;
+    const h = 28;
+
+    const bg = this.add.graphics().setDepth(50);
+    const drawBg = (fill: number, alpha: number) => {
+      bg.clear();
+      bg.fillStyle(fill, alpha);
+      bg.fillRoundedRect(x - w / 2, y - h / 2, w, h, 6);
+    };
+    drawBg(0x000000, 0.5);
+
+    this.add
+      .text(x, y, '← Главное меню', {
+        fontSize: '13px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5)
+      .setDepth(51);
+
+    const zone = this.add
+      .rectangle(x, y, w, h, 0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(52);
+
+    zone.on('pointerover', () => drawBg(0x333333, 0.8));
+    zone.on('pointerout', () => drawBg(0x000000, 0.5));
+    zone.on('pointerdown', () => this.scene.start('MainMenuScene'));
   }
 
   // ─── Подсказки управления ──────────────────────────────────────────

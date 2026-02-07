@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { MainMenuScene } from './scenes/MainMenuScene';
 import { SandboxScene } from './scenes/SandboxScene';
 import { GameScene } from './scenes/GameScene';
 
@@ -22,7 +23,7 @@ const config: Phaser.Types.Core.GameConfig = {
       constraintIterations: 14,
     },
   },
-  scene: [SandboxScene, GameScene],
+  scene: [MainMenuScene, SandboxScene, GameScene],
 };
 
 new Phaser.Game(config);

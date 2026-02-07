@@ -11,9 +11,11 @@ import {
 const GAME_W = 800;
 const GAME_H = 600;
 const GROUND_Y = 540;
-const FLOOR_THICKNESS = 60;
+/** Тонкий слой поверхности между игроком и панелью настроек (заметный на фоне неба) */
+const FLOOR_THICKNESS = 24;
 const WALL_THICKNESS = 30;
-const COLOR_FLOOR = 0x6b8e6b;
+/** Тёмно-зелёный, контрастный к градиенту неба */
+const COLOR_FLOOR = 0x3d5c3d;
 const COLOR_SKY_TOP = 0x4a90d9;
 const COLOR_SKY_BOTTOM = 0x87ceeb;
 const COLOR_PLAYER = 0x3377ee;
@@ -31,12 +33,46 @@ export class SandboxScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Sandbox: 40% высоты — игровая зона (с полом), 30% — панель регуляторов
+    const gameContainer = document.getElementById('game-container');
+    const panelArea = document.getElementById('panel-area');
+    const panel = document.getElementById('controls-panel');
+    if (gameContainer) gameContainer.style.height = '40vh';
+    if (panelArea) {
+      panelArea.style.height = '30vh';
+      panelArea.style.display = 'block';
+    }
+    if (panel) panel.style.display = 'flex';
+
     this.drawBackground();
     this.createFloorAndWalls();
     this.createRagdoll();
     this.setupControls();
     this.buildControlPanel();
     this.addControlHints();
+    this.createBackButton();
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this.scale.getParentBounds();
+        this.scale.refresh();
+      });
+    });
+
+    this.events.once('shutdown', () => {
+      const gc = document.getElementById('game-container');
+      const pa = document.getElementById('panel-area');
+      const p = document.getElementById('controls-panel');
+      if (gc) gc.style.height = '';
+      if (pa) {
+        pa.style.height = '';
+        pa.style.display = 'none';
+      }
+      if (p) {
+        p.innerHTML = '';
+        p.style.display = 'none';
+      }
+    });
   }
 
   private drawBackground(): void {
@@ -54,6 +90,8 @@ export class SandboxScene extends Phaser.Scene {
   private createFloorAndWalls(): void {
     const floorCenterY = GROUND_Y + FLOOR_THICKNESS / 2;
     this.add.rectangle(GAME_W / 2, floorCenterY, GAME_W, FLOOR_THICKNESS, COLOR_FLOOR).setDepth(0);
+    // Чёткая верхняя граница пола — видимая линия между игроком и панелью
+    this.add.rectangle(GAME_W / 2, GROUND_Y, GAME_W, 4, 0x2d4a2d).setDepth(0.5);
     this.matter.add.rectangle(GAME_W / 2, floorCenterY, GAME_W, FLOOR_THICKNESS, {
       isStatic: true,
       friction: 0.8,
@@ -97,6 +135,38 @@ export class SandboxScene extends Phaser.Scene {
     this.keyRight = kb.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
     this.keyUp = kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
     this.keyDown = kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
+  }
+
+  private createBackButton(): void {
+    const x = GAME_W - 100;
+    const y = 16;
+    const w = 180;
+    const h = 28;
+
+    const bg = this.add.graphics().setDepth(50);
+    const drawBg = (fill: number, alpha: number) => {
+      bg.clear();
+      bg.fillStyle(fill, alpha);
+      bg.fillRoundedRect(x - w / 2, y - h / 2, w, h, 6);
+    };
+    drawBg(0x000000, 0.5);
+
+    this.add
+      .text(x, y, '← Главное меню', {
+        fontSize: '13px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5)
+      .setDepth(51);
+
+    const zone = this.add
+      .rectangle(x, y, w, h, 0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(52);
+
+    zone.on('pointerover', () => drawBg(0x333333, 0.8));
+    zone.on('pointerout', () => drawBg(0x000000, 0.5));
+    zone.on('pointerdown', () => this.scene.start('MainMenuScene'));
   }
 
   private addControlHints(): void {
