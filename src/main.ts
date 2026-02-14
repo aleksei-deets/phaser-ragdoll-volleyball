@@ -13,16 +13,6 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.ScaleModes.FIT,
     autoCenter: Phaser.Scale.Center.CENTER_BOTH,
   },
-  physics: {
-    default: 'matter',
-    matter: {
-      gravity: { x: 0, y: 1.2 },
-      debug: false,
-      positionIterations: 10,
-      velocityIterations: 10,
-      constraintIterations: 14,
-    },
-  },
   scene: [MainMenuScene, SandboxScene, GameScene],
 };
 

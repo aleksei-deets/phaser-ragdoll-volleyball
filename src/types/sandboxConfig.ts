@@ -1,73 +1,76 @@
-/** Полный конфиг песочницы для сохранения в пресеты и применения к сцене */
+/** Полный конфиг песочницы для сохранения в пресеты и применения к сцене (p2-es) */
 export interface SandboxConfig {
+  // ── World ──────────────────────────────────────────────────────────
   gravityX: number;
-  gravityY: number;
-  impulseStrength: number;
-  frictionAirTorso: number;
-  frictionAirLimbs: number;
-  density: number;
-  friction: number;
-  frictionStatic: number;
-  restitution: number;
-  stabilizationMultiplier: number;
-  stabilizationTorsoKp: number;
-  stabilizationTorsoKd: number;
-  stabilizationHeadKp: number;
-  stabilizationHeadKd: number;
-  stabilizationLegKp: number;
-  stabilizationLegKd: number;
-  stabilizationArmKp: number;
-  stabilizationArmKd: number;
-  enforceStructureStrength: number;
-  positionIterations: number;
-  velocityIterations: number;
-  constraintIterations: number;
-  jumpVelocity: number;
-  armLiftOnJump: number;
-  densityTorso: number;
-  densityLimbs: number;
-  maxVerticalSpeed: number;
+  gravityY: number;            // p2: positive = up; typically -10
+  solverIterations: number;
+  solverTolerance: number;
+
+  // ── Body ───────────────────────────────────────────────────────────
+  bodyMass: number;
+  damping: number;
   angularDamping: number;
-  footRestitution: number;
+
+  // ── Joint limits (degrees — converted to radians at runtime) ──────
+  jointLimitNeck: number;
+  jointLimitKnee: number;
+  jointLimitHip: number;
+  jointLimitSpine: number;
+  jointLimitShoulder: number;
+  jointLimitElbow: number;
+
+  // ── Contact material ───────────────────────────────────────────────
+  friction: number;
+  restitution: number;
+
+  // ── Movement ───────────────────────────────────────────────────────
+  jumpVelocity: number;
+  jumpCooldownMs: number;
+  moveForce: number;
+  maxHorizontalSpeed: number;
+  armLiftOnJump: number;
+
+  // ── Sandbox-specific impulse tweaks ────────────────────────────────
+  impulseStrength: number;
   horizontalImpulseScale: number;
   verticalImpulseScale: number;
-  jumpCooldownMs: number;
 }
 
 export const DEFAULT_SANDBOX_CONFIG: SandboxConfig = {
   gravityX: 0,
-  gravityY: 1.2,
-  impulseStrength: 0.7,
-  frictionAirTorso: 0.25,
-  frictionAirLimbs: 0.03,
-  density: 0.002,
-  friction: 0.4,
-  frictionStatic: 0.6,
-  restitution: 0.05,
-  stabilizationMultiplier: 1,
-  stabilizationTorsoKp: 0.5,
-  stabilizationTorsoKd: 0.6,
-  stabilizationHeadKp: 0.3,
-  stabilizationHeadKd: 0.5,
-  stabilizationLegKp: 0.25,
-  stabilizationLegKd: 0.5,
-  stabilizationArmKp: 0.15,
-  stabilizationArmKd: 0.5,
-  enforceStructureStrength: 0.015,
-  positionIterations: 10,
-  velocityIterations: 10,
-  constraintIterations: 14,
-  jumpVelocity: 12,
-  armLiftOnJump: 0.8,
-  densityTorso: 0.002,
-  densityLimbs: 0.002,
-  maxVerticalSpeed: 0,
+  gravityY: -10,
+  solverIterations: 100,
+  solverTolerance: 0.002,
+
+  bodyMass: 1,
+  damping: 0,
   angularDamping: 0,
-  footRestitution: 0.05,
+
+  jointLimitNeck: 22.5,      // PI/8 in degrees
+  jointLimitKnee: 22.5,
+  jointLimitHip: 22.5,
+  jointLimitSpine: 22.5,
+  jointLimitShoulder: 60,    // PI/3 in degrees
+  jointLimitElbow: 22.5,
+
+  friction: 3,
+  restitution: 0,
+
+  jumpVelocity: 7,
+  jumpCooldownMs: 400,
+  moveForce: 50,
+  maxHorizontalSpeed: 5,
+  armLiftOnJump: 0.8,
+
+  impulseStrength: 1,
   horizontalImpulseScale: 1,
   verticalImpulseScale: 1,
-  jumpCooldownMs: 400,
 };
+
+/** Degrees → radians helper */
+export function deg2rad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
 
 /** Базовый URL папки пресетов (public/presets в dev и build) */
 export const PRESETS_BASE_URL = '/presets';

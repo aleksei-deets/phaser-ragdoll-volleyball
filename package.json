@@ -16,5 +16,8 @@
     "phaser": "^4.0.0-rc.6",
     "typescript": "^5.9.3",
     "vite": "^6.4.1"
+  },
+  "dependencies": {
+    "p2-es": "^1.2.3"
   }
 }
